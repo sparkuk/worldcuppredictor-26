@@ -9,8 +9,8 @@ import pandas as pd
 
 st.set_page_config(page_title="World Cup Predictor", layout="wide")
 
-MATCHES_FILE = 'matches.csv'
-USERS_FILE = 'users.csv'
+MATCHES_FILE = st.secrets['file_names']['matches_file']
+USERS_FILE = st.secrets['file_names']['users_file']
 
 # CUTOFF DATE for Prediction Editing as per requirements
 CUTOFF_DATE = datetime.datetime(2026, 6, 11)
@@ -19,17 +19,35 @@ def friendly_date(date_str: str) -> str:
     date = datetime.datetime.strptime(date_str,"%Y-%m-%dT%H:%M:%S")
     return datetime.datetime.strftime(date,'%a %d %b %H:%M')
 
-#def log(message: str) -> None:
-#    os.write(1, f"{datetime.datetime.now()} - {message}\n".encode())
+def log(message: str) -> None:
+   os.write(1, f"{datetime.datetime.now()} - {message}\n".encode())
     
 
 @st.cache_resource
 def get_storage():
     # GCS version
-    return GCSStorageEngine('worldcuppredictor-26', 'matches-m-test.csv', 'users-m-test.csv', './.streamlit/mc-web-219823-3929ff8ca756.json')
+    #    return GCSStorageEngine('worldcuppredictor-26', MATCHES_FILE, USERS_FILE, './.streamlit/mc-web-219823-3929ff8ca756.json')
+    log(f"Matches File: {MATCHES_FILE}\n")
+    log(f"Users File: {USERS_FILE}\n")
+    log(f"GCS Access File: {st.secrets['file_names']['gcs_access_file']}\n")
+    credentials_dict = {
+        'type': 'service_account',
+        "project_id": st.secrets['connection_gcs']['project_id'],
+        "private_key_id": st.secrets['connection_gcs']['private_key_id'],
+        "private_key": st.secrets['connection_gcs']['private_key'],
+        "client_email": st.secrets['connection_gcs']['client_email'],
+        "client_id": st.secrets['connection_gcs']['client_id'],
+        "auth_uri": st.secrets['connection_gcs']['auth_uri'],
+        "token_uri": st.secrets['connection_gcs']['token_uri'],
+        "auth_provider_x509_cert_url": st.secrets['connection_gcs']['auth_provider_x509_cert_url'],
+        "client_x509_cert_url": st.secrets['connection_gcs']['client_x509_cert_url'],
+        "universe_domain": st.secrets['connection_gcs']['universe_domain']
+    }
+
+    return GCSStorageEngine('worldcuppredictor-26', MATCHES_FILE, USERS_FILE, credentials_dict)
 
     # CSV version
-    #return CSVStorageEngine(MATCHES_FILE, USERS_FILE)
+#    return CSVStorageEngine(MATCHES_FILE, USERS_FILE)
 
 storage = get_storage()
 

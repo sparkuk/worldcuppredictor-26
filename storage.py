@@ -1,3 +1,4 @@
+from altair.vegalite.v5.schema import core
 import csv
 import io
 import json
@@ -106,15 +107,16 @@ class CSVStorageEngine(StorageEngine):
 
 
 class GCSStorageEngine(StorageEngine):
-    def __init__(self, bucket_name: str, matches_blob: str, users_blob: str, credentials_path: str = None):
+    def __init__(self, bucket_name: str, matches_blob: str, users_blob: str, credentials_list: dict):
         self.bucket_name = bucket_name
         self.matches_blob = matches_blob
         self.users_blob = users_blob
         
-        if credentials_path:
-            self.client = storage.Client.from_service_account_json(credentials_path)
-        else:
-            self.client = storage.Client()
+#        if credentials_path:
+            #self.client = storage.Client.from_service_account_json(credentials_path)
+        self.client = storage.Client.from_service_account_info(credentials_list)
+#        else:
+#            self.client = storage.Client()
         self.bucket = self.client.bucket(self.bucket_name)
         self._ensure_files()
         

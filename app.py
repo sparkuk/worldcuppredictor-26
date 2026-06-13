@@ -13,7 +13,7 @@ MATCHES_FILE = st.secrets['file_names']['matches_file']
 USERS_FILE = st.secrets['file_names']['users_file']
 
 # CUTOFF DATE for Prediction Editing as per requirements
-CUTOFF_DATE = datetime.datetime(2026, 6, 11)
+CUTOFF_DATE = datetime.datetime(2026, 6, 18)
 
 def friendly_date(date_str: str) -> str:
     date = datetime.datetime.strptime(date_str,"%Y-%m-%dT%H:%M:%S")
@@ -25,11 +25,12 @@ def log(message: str) -> None:
 
 @st.cache_resource
 def get_storage():
-    # GCS version
-    #    return GCSStorageEngine('worldcuppredictor-26', MATCHES_FILE, USERS_FILE, './.streamlit/mc-web-219823-3929ff8ca756.json')
     log(f"Matches File: {MATCHES_FILE}\n")
     log(f"Users File: {USERS_FILE}\n")
-    log(f"GCS Access File: {st.secrets['file_names']['gcs_access_file']}\n")
+
+    # CSV version
+    #return CSVStorageEngine(MATCHES_FILE, USERS_FILE)
+
     credentials_dict = {
         'type': 'service_account',
         "project_id": st.secrets['connection_gcs']['project_id'],
@@ -46,8 +47,6 @@ def get_storage():
 
     return GCSStorageEngine('worldcuppredictor-26', MATCHES_FILE, USERS_FILE, credentials_dict)
 
-    # CSV version
-#    return CSVStorageEngine(MATCHES_FILE, USERS_FILE)
 
 storage = get_storage()
 

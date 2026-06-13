@@ -9,6 +9,9 @@ from typing import List
 from google.cloud import storage
 from models import Match, User, Prediction
 
+def log(message: str) -> None:
+   os.write(1, f"{datetime.datetime.now()} - {message}\n".encode())
+
 class StorageEngine:
     def load_matches(self) -> List[Match]:
         raise NotImplementedError
@@ -44,10 +47,13 @@ class CSVStorageEngine(StorageEngine):
                 writer.writerow(['username', 'password_hash', 'user_type', 'predictions'])
                 
     def load_matches(self) -> List[Match]:
+        log(f"Loading matches from CSV")
         matches = []
         with open(self.matches_file, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
+            log(f"Reader, about to loop")
             for row in reader:
+                log(f"Row: {row}")
                 home_score = int(row['home_score']) if row.get('home_score') else None
                 away_score = int(row['away_score']) if row.get('away_score') else None
                 matches.append(Match(

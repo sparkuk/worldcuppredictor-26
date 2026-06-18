@@ -13,11 +13,18 @@ MATCHES_FILE = st.secrets['file_names']['matches_file']
 USERS_FILE = st.secrets['file_names']['users_file']
 
 # CUTOFF DATE for Prediction Editing as per requirements
-CUTOFF_DATE = datetime.datetime(2026, 6, 18)
+CUTOFF_DATE = datetime.datetime(2026, 7, 1)
 
 def friendly_date(date_str: str) -> str:
     date = datetime.datetime.strptime(date_str,"%Y-%m-%dT%H:%M:%S")
     return datetime.datetime.strftime(date,'%a %d %b %H:%M')
+
+def is_past_match(date_str: str, tz_str: str) -> bool:
+    date = datetime.datetime.strptime(date_str,"%Y-%m-%dT%H:%M:%S")
+    offset = int(tz_str)
+    aware_date = date.replace(tzinfo=datetime.timezone.utc)
+    aware_date -= datetime.timedelta(hours=offset)
+    return aware_date < datetime.datetime.now(datetime.timezone.utc)
 
 def log(message: str) -> None:
    os.write(1, f"{datetime.datetime.now()} - {message}\n".encode())
@@ -220,6 +227,12 @@ def view_player_dashboard(user: User):
             existing_pred = user.predictions.get(m.id)
             home_val = existing_pred.home_score if existing_pred else 0
             away_val = existing_pred.away_score if existing_pred else 0
+
+            if(is_past_match(m.date_time_str, m.timezone_offset)):
+                st.write(f"Your Prediction: {m.home_team} {home_val} - {away_val} {m.away_team}")
+                st.write("Actual Score: ", m.home_score, " - ", m.away_score)   
+                updated_predictions[m.id] = Prediction(m.id, home_val, away_val)
+            else:    
             
             #col1, col2 = st.columns(2)
             #with col1:
@@ -227,35 +240,53 @@ def view_player_dashboard(user: User):
             #with col2:
             #    new_away = st.number_input(f"{m.away_team} Score", min_value=0, value=away_val, key=f"a_{m.id}", disabled=not can_edit)
 
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.subheader(f"\n{m.home_team}")
-            with col2:
-                new_home = st.number_input("Home score", min_value=0, value=home_val, key=f"h_{m.id}", disabled=not can_edit, label_visibility="collapsed")
-            with col3:
-                new_away = st.number_input("Away Score", min_value=0, value=away_val, key=f"a_{m.id}", disabled=not can_edit, label_visibility="collapsed")
-            with col4:
-                st.subheader(f"{m.away_team}")
-            #with col5: 
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.subheader(f"\n{m.home_team}")
+                with col2:
+                    new_home = st.number_input("Home score", min_value=0, value=home_val, key=f"h_{m.id}", disabled=not can_edit, label_visibility="collapsed")
+                with col3:
+                    new_away = st.number_input("Away Score", min_value=0, value=away_val, key=f"a_{m.id}", disabled=not can_edit, label_visibility="collapsed")
+                with col4:
+                    st.subheader(f"{m.away_team}")
+                #with col5:     
             #    date = datetime.datetime.strptime(m.date_time_str,"%Y-%m-%dT%H:%M:%S")
             #    st.write(f"{datetime.datetime.strftime(date,'%a %d %b')}")
 
-
-
-            updated_predictions[m.id] = Prediction(m.id, new_home, new_away)
+                updated_predictions[m.id] = Prediction(m.id, new_home, new_away)
+            
             st.markdown("---")
             
         if can_edit:
             submitted = st.form_submit_button("Save Predictions")
             if submitted:
+                is_still_allowed_to_update = True
                 users = storage.load_users()
                 for i, u in enumerate(users):
                     if u.username == user.username:
-                        users[i].predictions = updated_predictions
+                        # Check if any prediction has changed and the match has already started
+                        matches_by_id = {m.id: m for m in matches}
+                        for m_id, new_pred in updated_predictions.items():
+                            old_pred = u.predictions.get(m_id)
+                            old_home = old_pred.home_score if old_pred else 0
+                            old_away = old_pred.away_score if old_pred else 0
+                            
+                            if new_pred.home_score != old_home or new_pred.away_score != old_away:
+                                match = matches_by_id.get(m_id)
+                                if match and is_past_match(match.date_time_str, match.timezone_offset):
+                                    st.error(f"You cannot update predictions for matches that have already started ({match.home_team} vs {match.away_team}).")
+                                    is_still_allowed_to_update = False
+                                    break
+
+                        #update 
+                        if is_still_allowed_to_update:
+                            users[i].predictions = updated_predictions
                         break
-                storage.save_users(users)
-                st.session_state['current_user'].predictions = updated_predictions
-                st.success("Predictions saved successfully!")
+                if(is_still_allowed_to_update):
+                    storage.save_users(users)
+                    st.session_state['current_user'].predictions = updated_predictions
+                    st.success("Predictions saved successfully!")
+                    
 
 def view_admin_dashboard():
     st.header("Admin Dashboard: Enter Match Results")

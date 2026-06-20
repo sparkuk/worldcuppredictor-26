@@ -97,7 +97,10 @@ def view_leaderboard():
                     pred = u.predictions[m.id]
                     pts = calculate_points(pred.home_score, pred.away_score, m.home_score, m.away_score)
                     total_points += pts
-        leaderboard_data.append({"User": u.username, "Points": total_points})
+        display_name=u.username
+        if display_name  == "Katherine":
+            display_name="Jamie Lee"
+        leaderboard_data.append({"User": display_name, "Points": total_points})
         
     if leaderboard_data:
         df = pd.DataFrame(leaderboard_data).sort_values(by="Points", ascending=False).reset_index(drop=True)

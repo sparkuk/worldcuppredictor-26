@@ -19,11 +19,15 @@ def friendly_date(date_str: str) -> str:
     date = datetime.datetime.strptime(date_str,"%Y-%m-%dT%H:%M:%S")
     return datetime.datetime.strftime(date,'%a %d %b %H:%M')
 
-def is_past_match(date_str: str, tz_str: str) -> bool:
+def get_tz_aware_dt(date_str: str, tz_str: str) -> datetime.datetime:
     date = datetime.datetime.strptime(date_str,"%Y-%m-%dT%H:%M:%S")
     offset = int(tz_str)
     aware_date = date.replace(tzinfo=datetime.timezone.utc)
     aware_date -= datetime.timedelta(hours=offset)
+    return aware_date
+
+def is_past_match(date_str: str, tz_str: str) -> bool:
+    aware_date = get_tz_aware_dt(date_str, tz_str)
     return aware_date < datetime.datetime.now(datetime.timezone.utc)
 
 def log(message: str) -> None:
@@ -113,24 +117,14 @@ def view_upcoming_matches():
     st.header("Upcoming Matches")
     matches = storage.load_matches()
     
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(datetime.timezone.utc)
     future_matches = []
     
     for m in matches:
-        try:
-            m_date = pd.to_datetime(f"{m.date_time_str} {m.timezone_offset}")
-            m_date_naive = m_date.replace(tzinfo=None)
-            if m_date_naive >= now:
-                future_matches.append((m_date_naive, m))
-        except Exception as e:
-            # Fallback for naive string
-            try:
-                m_date = datetime.datetime.strptime(m.date_time_str, "%Y-%m-%d %H:%M")
-                if m_date >= now:
-                    future_matches.append((m_date, m))
-            except Exception:
-                pass
-                
+        m_date = get_tz_aware_dt(m.date_time_str, m.timezone_offset)
+        if m_date > now:
+            future_matches.append((m_date, m))
+
     # Sort by date and take the next 6
     future_matches.sort(key=lambda x: x[0])
     upcoming = [m for _, m in future_matches[:6]]
@@ -159,23 +153,13 @@ def view_recent_matches():
     st.header("Recent Matches")
     matches = storage.load_matches()
     
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(datetime.timezone.utc)
     past_matches = []
     
     for m in matches:
-        try:
-            m_date = pd.to_datetime(f"{m.date_time_str} {m.timezone_offset}")
-            m_date_naive = m_date.replace(tzinfo=None)
-            if m_date_naive < now:
-                past_matches.append((m_date_naive, m))
-        except Exception as e:
-            # Fallback for naive string
-            try:
-                m_date = datetime.datetime.strptime(m.date_time_str, "%Y-%m-%d %H:%M")
-                if m_date < now:
-                    past_matches.append((m_date, m))
-            except Exception:
-                pass
+        m_date = get_tz_aware_dt(m.date_time_str, m.timezone_offset)
+        if m_date < now:
+            past_matches.append((m_date, m))
                 
     # Sort by date descending and take the first 6
     past_matches.sort(key=lambda x: x[0], reverse=True)
